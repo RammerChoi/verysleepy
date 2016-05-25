@@ -131,6 +131,8 @@ private:
 
 	std::wstring LaunchProfiler(const AttachInfo *info);
 	AttachInfo *RunProcess(const std::wstring &run_cmd, const std::wstring &run_cwd);
+	AttachInfo *AttachToProcess(const std::wstring& processId);
+	static void TryLoadSymbols(AttachInfo* output);
 	void LoadProfileData(const std::wstring &filename);
 	std::wstring ObtainProfileData();
 

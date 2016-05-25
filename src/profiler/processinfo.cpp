@@ -24,6 +24,7 @@ http://www.gnu.org/copyleft/gpl.html..
 #include "processinfo.h"
 
 #include "../utils/osutils.h"
+#include "../utils/except.h"
 #include <windows.h>
 #include <tlhelp32.h>
 
@@ -129,8 +130,19 @@ void ProcessInfo::enumProcesses(std::vector<ProcessInfo>& processes_out)
 	CloseHandle(snapshot);
 }
 
-
-
-
-
-
+ProcessInfo ProcessInfo::FindProcessById(DWORD process_id)
+{
+	std::vector<ProcessInfo> allProcesses;
+	enumProcesses(allProcesses);
+	bool found = false;
+	for(int i =0;i< allProcesses.size();i++)
+	{
+		auto process = allProcesses[i];
+		if(process.getID() == process_id)
+		{
+			return process;
+			found = true;
+		}
+	}
+	throw SleepyException("Could not found process with specified id: " + std::to_string((unsigned long long) process_id));
+}
