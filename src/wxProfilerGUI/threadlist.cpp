@@ -1,4 +1,4 @@
-/*=====================================================================
+﻿/*=====================================================================
 threadList.cpp
 ---------------
 File created by ClassTemplate on Sun Mar 20 17:33:43 2005
@@ -259,86 +259,16 @@ void ThreadList::updateTimes()
 
 	for(int i=0; i<(int)this->threads.size(); ++i)
 	{
-		this->threads[i].cpuUsage = -1;
-		this->threads[i].setLocation(L"-");
+		if (!this->threads[i].recalcUsage(sampleTimeDiff))
+			continue;
 
 		HANDLE thread_handle = this->threads[i].getThreadHandle(); 
 		if (thread_handle == NULL)
 			continue;
 
-		PROFILER_ADDR profaddr = 0;
-		FILETIME CreationTime, ExitTime, KernelTime, UserTime;
-	
-		if ( GetThreadTimes(
-			thread_handle,
-			&CreationTime,
-			&ExitTime,
-			&KernelTime,
-			&UserTime
-			) )
-		{
-			__int64 kernel_diff = getDiff(this->threads[i].prevKernelTime, KernelTime);
-			__int64 user_diff = getDiff(this->threads[i].prevUserTime, UserTime);
-			this->threads[i].prevKernelTime = KernelTime;
-			this->threads[i].prevUserTime = UserTime;
-
-			if (sampleTimeDiff > 0){
-				this->threads[i].cpuUsage = ((kernel_diff + user_diff) / 10000) * 100 / sampleTimeDiff;
-			}
-		}
-
-		try {
-			std::map<CallStack, SAMPLE_TYPE> callstacks;
-			std::map<PROFILER_ADDR, SAMPLE_TYPE> flatcounts;
-			Profiler profiler(process_handle, thread_handle, callstacks, flatcounts);
-			bool ok = profiler.sampleTarget(0, syminfo);
-			if (ok && !profiler.targetExited() && callstacks.size() > 0)
-			{
-				const CallStack &stack = callstacks.begin()->first;
-				profaddr = stack.addr[0];
-
-				// Collapse functions down
-				if (syminfo && stack.depth > 0)
-				{
-					for (size_t n=0;n<stack.depth;n++)
-					{
-						PROFILER_ADDR addr = stack.addr[n];
-						std::wstring mod = syminfo->getModuleNameForAddr(addr);
-						if (IsOsModule(mod))
-						{
-							profaddr = addr;
-						} else {
-							break;
-						}
-					}
-
-					for (int n=(int)stack.depth-1;n>=0;n--)
-					{
-						std::wstring file;
-						int line;
-
-						PROFILER_ADDR addr = stack.addr[n];
-						std::wstring loc = syminfo->getProcForAddr(addr, file, line);
-						if (IsOsFunction(loc))
-						{
-							profaddr = addr;
-							break;
-						}
-					}
-				}
-			}
-		} catch( ProfilerExcep &)
-		{
-		}
-
-		if (profaddr && syminfo)
-		{
-			std::wstring file;
-			int line;
-			
-			// Grab the name of the current IP location.
-			std::wstring loc = syminfo->getProcForAddr(profaddr, file, line);
-			
+		this->threads[i].setLocation(L"-");
+		if (i < MAX_NUM_THREAD_LOCATIONS) {
+			std::wstring loc = getLocation(thread_handle);
 			this->threads[i].setLocation(loc);
 		}
 	}
@@ -346,4 +276,60 @@ void ThreadList::updateTimes()
 	fillList();
 }
 
+std::wstring ThreadList::getLocation(HANDLE thread_handle) {
+	PROFILER_ADDR profaddr = 0;
+	try {
+		std::map<CallStack, SAMPLE_TYPE> callstacks;
+		std::map<PROFILER_ADDR, SAMPLE_TYPE> flatcounts;
+		Profiler profiler(process_handle, thread_handle, callstacks, flatcounts);
+		bool ok = profiler.sampleTarget(0, syminfo);
+		if (ok && !profiler.targetExited() && callstacks.size() > 0)
+		{
+			const CallStack &stack = callstacks.begin()->first;
+			profaddr = stack.addr[0];
 
+			// Collapse functions down
+			if (syminfo && stack.depth > 0)
+			{
+				for (size_t n=0;n<stack.depth;n++)
+				{
+					PROFILER_ADDR addr = stack.addr[n];
+					std::wstring mod = syminfo->getModuleNameForAddr(addr);
+					if (IsOsModule(mod))
+					{
+						profaddr = addr;
+					} else {
+						break;
+					}
+				}
+
+				for (int n=(int)stack.depth-1;n>=0;n--)
+				{
+					std::wstring file;
+					int line;
+
+					PROFILER_ADDR addr = stack.addr[n];
+					std::wstring loc = syminfo->getProcForAddr(addr, file, line);
+					if (IsOsFunction(loc))
+					{
+						profaddr = addr;
+						break;
+					}
+				}
+			}
+		}
+	} catch( ProfilerExcep &)
+	{
+	}
+
+	if (profaddr && syminfo)
+	{
+		std::wstring file;
+		int line;
+
+		// Grab the name of the current IP location.
+		return syminfo->getProcForAddr(profaddr, file, line);
+	}
+
+	return L"-";
+}
