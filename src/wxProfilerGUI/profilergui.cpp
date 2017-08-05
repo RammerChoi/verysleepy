@@ -429,7 +429,6 @@ std::wstring ProfilerGUI::ObtainProfileData()
 				continue;
 			}
 
-			wxScopeGuard sgTerm = wxMakeGuard(TerminateProcess, info->process_handle, 0);
 			return LaunchProfiler(info.get());
 		}
 	}
@@ -512,7 +511,6 @@ bool ProfilerGUI::Run()
 	if (!cmdline_run.empty())
 	{
 		std::unique_ptr<AttachInfo> info(RunProcess(cmdline_run, L""));
-		wxScopeGuard sgTerm = wxMakeGuard(TerminateProcess, info->process_handle, 0);
 		filename = LaunchProfiler(info.get());
 	}
 	else if (!cmdline_attach.empty())

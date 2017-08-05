@@ -57,6 +57,7 @@ public:
 	FILETIME prevKernelTime, prevUserTime;
 	// DE: 20090325 Threads now have CPU usage
 	int cpuUsage;
+	__int64 totalCpuTimeMs;
 
 private:
 	std::wstring location;
