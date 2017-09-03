@@ -117,6 +117,8 @@ public:
 	}
 };
 
+class ProfilerThread;
+
 /*=====================================================================
 ProfilerGUI
 -----------
@@ -156,6 +158,8 @@ private:
 
 	class CaptureWin *captureWin;
 	bool initialized;
+	
+	ProfilerThread* profilerthread;
 };
 
 DECLARE_APP(ProfilerGUI)

@@ -1,4 +1,4 @@
-/*=====================================================================
+﻿/*=====================================================================
 profilerthread.h
 ----------------
 File created by ClassTemplate on Thu Feb 24 19:29:41 2005
@@ -80,6 +80,7 @@ private:
 	void error(const std::wstring& what);
 
 	void sampleLoop();
+	bool saveData(const double beg, const double end);
 	void saveData();
 
 	std::wstring symbolsStage;
@@ -87,9 +88,11 @@ private:
 	void beginProgress(std::wstring stage, int total=0);
 	bool updateProgress();
 
+	void changeProfileFrame(const double timestamp);
+
 	// DE: 20090325 callstacks and flatcounts are shared for all threads to profile
-	std::map<CallStack, SAMPLE_TYPE> callstacks;
-	std::map<PROFILER_ADDR, SAMPLE_TYPE> flatcounts;
+	ProfileFrame totalProfileFrame;
+	std::list<ProfileFrame> profileFrames;
 
 	// DE: 20090325 one Profiler instance per thread to profile
 	std::vector<Profiler> profilers;

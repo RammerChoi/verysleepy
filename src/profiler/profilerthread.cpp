@@ -1,4 +1,4 @@
-/*=====================================================================
+﻿/*=====================================================================
 profilerthread.cpp
 ------------------
 File created by ClassTemplate on Thu Feb 24 19:29:41 2005
@@ -45,10 +45,11 @@ ProfilerThread::ProfilerThread(HANDLE target_process_, const std::vector<HANDLE>
 	target_process(target_process_),
 	sym_info(sym_info_)
 {
+	profileFrames.push_back(ProfileFrame());
 	// DE: 20090325: Profiler has a list of threads to profile, one Profiler instance per thread
 	profilers.reserve(target_threads.size());
 	for (auto it = target_threads.begin(); it != target_threads.end(); ++it)
-		profilers.push_back(Profiler(target_process_, *it, callstacks, flatcounts));
+		profilers.push_back(Profiler(target_process_, *it, profileFrames.back()));
 
 	numsamplessofar = 0;
 	done = false;
@@ -129,6 +130,9 @@ void ProfilerThread::sampleLoop()
 	QueryPerformanceCounter(&start);
 	prev = start;
 
+	double exFrameChanged = 0.0;
+	const double frameInterval = 0.5;	// 0.5s
+
 	bool minidump_saved = false;
 
 	while(!this->commit_suicide)
@@ -154,6 +158,13 @@ void ProfilerThread::sampleLoop()
 			continue;
 		}
 
+		double elapsedPerSec = static_cast<double>(elapsed) / freq.QuadPart;
+		if (exFrameChanged + frameInterval < elapsedPerSec)
+		{
+			changeProfileFrame(elapsedPerSec);
+			exFrameChanged = elapsedPerSec;
+		}
+
 		sample(t);
 
 		int ms = 100 / prefs.throttle;
@@ -163,6 +174,43 @@ void ProfilerThread::sampleLoop()
 	}
 
 	timeEndPeriod(1);
+}
+
+template<class Map>
+static void accumMap(Map& dest, const Map& source)
+{
+	for (auto it = source.begin(); it != source.end(); ++it)
+	{
+		dest[it->first] = it->second;
+	}
+}
+
+bool ProfilerThread::saveData(const double beg, const double end)
+{
+	auto begIt = std::find_if(profileFrames.begin(), profileFrames.end(), [&](const ProfileFrame& frame) {
+		return beg < frame.timestamp;
+	});
+
+	if (begIt == profileFrames.end())
+		return false;
+
+	auto endIt = std::find_if(profileFrames.begin(), profileFrames.end(), [&](const ProfileFrame& frame){
+		return end < frame.timestamp;
+	});
+
+	if (endIt != profileFrames.end())
+		++endIt;
+
+	totalProfileFrame.callstacks.clear();
+	totalProfileFrame.flatcounts.clear();
+	for (auto it = begIt; it != endIt; ++it)
+	{
+		accumMap(totalProfileFrame.callstacks, it->callstacks);
+		accumMap(totalProfileFrame.flatcounts, it->flatcounts);
+	}
+
+	saveData();
+	return true;
 }
 
 void ProfilerThread::saveData()
@@ -212,14 +260,14 @@ void ProfilerThread::saveData()
 	std::map<PROFILER_ADDR, bool> used_addresses;
 	SAMPLE_TYPE totalCounts = 0;
 
-	for (auto i = flatcounts.begin(); i != flatcounts.end(); ++i)
+	for (auto i = totalProfileFrame.flatcounts.begin(); i != totalProfileFrame.flatcounts.end(); ++i)
 	{
 		PROFILER_ADDR addr = i->first;
 		used_addresses[addr] = true;
 		totalCounts += i->second;
 	}
 
-	for (auto i = callstacks.begin(); i != callstacks.end(); ++i)
+	for (auto i = totalProfileFrame.callstacks.begin(); i != totalProfileFrame.callstacks.end(); ++i)
 	{
 		const CallStack &callstack = i->first;
 		for (size_t n=0;n<callstack.depth;n++)
@@ -255,12 +303,12 @@ void ProfilerThread::saveData()
 	}
 
 	//------------------------------------------------------------------------
-	beginProgress(L"Saving IP counts", flatcounts.size());
+	beginProgress(L"Saving IP counts", totalProfileFrame.flatcounts.size());
 	zip.PutNextEntry(_T("IPCounts.txt"));
 
 	txt << totalCounts << "\n";
 
-	for (auto i = flatcounts.begin(); i != flatcounts.end(); ++i)
+	for (auto i = totalProfileFrame.flatcounts.begin(); i != totalProfileFrame.flatcounts.end(); ++i)
 	{
 		PROFILER_ADDR addr = i->first;
 		SAMPLE_TYPE count = i->second;
@@ -272,16 +320,16 @@ void ProfilerThread::saveData()
 	}
 
 	//------------------------------------------------------------------------
-	beginProgress(L"Saving callstacks", callstacks.size());
+	beginProgress(L"Saving callstacks", totalProfileFrame.callstacks.size());
 	zip.PutNextEntry(_T("Callstacks.txt"));
 
-	for (auto i = callstacks.begin(); i != callstacks.end(); ++i)
+	for (auto i = totalProfileFrame.callstacks.begin(); i != totalProfileFrame.callstacks.end(); ++i)
 	{
 		const CallStack &callstack = i->first;
 		SAMPLE_TYPE count = i->second;
 
 		txt << count;
-		for( size_t d=0;d<callstack.depth;d++ )
+		for (size_t d = 0; d < callstack.depth; d++)
 			txt << " " << ::toHexString(callstack.addr[d]);
 		txt << "\n";
 
@@ -313,7 +361,8 @@ void ProfilerThread::run()
 	try
 	{
 		sampleLoop();
-	} catch(ProfilerExcep& e) {
+	}
+	catch (ProfilerExcep& e) {
 		// see if it's an actual error, or did the thread just finish naturally
 		for (auto it = profilers.begin(); it != profilers.end(); ++it)
 		{
@@ -371,4 +420,21 @@ bool ProfilerThread::updateProgress()
 		return true;
 	}
 	return false;
+}
+
+void ProfilerThread::changeProfileFrame(const double timestamp)
+{
+	ProfileFrame& frame = profileFrames.back();
+	frame.timestamp = timestamp;
+
+	// accumulate to total profile frame
+	accumMap(totalProfileFrame.callstacks, frame.callstacks);
+	accumMap(totalProfileFrame.flatcounts, frame.flatcounts);
+
+	profileFrames.push_back(ProfileFrame());
+
+	for (auto it = profilers.begin(); it != profilers.end(); ++it)
+	{
+		it->setProfileFrame(profileFrames.back());
+	}
 }

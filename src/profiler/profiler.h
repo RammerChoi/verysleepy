@@ -1,4 +1,4 @@
-/*=====================================================================
+﻿/*=====================================================================
 profiler.h
 ----------
 File created by ClassTemplate on Thu Feb 24 19:00:30 2005
@@ -80,6 +80,13 @@ private:
 	std::wstring s;
 };
 
+struct ProfileFrame
+{
+	std::map<CallStack, SAMPLE_TYPE> callstacks;
+	std::map<PROFILER_ADDR, SAMPLE_TYPE> flatcounts;
+	double timestamp;
+};
+
 /*=====================================================================
 Profiler
 --------
@@ -95,7 +102,7 @@ public:
 	=====================================================================*/
 	// DE: 20090325: Profiler no longer owns callstack and flatcounts since it is shared between multipler profilers
 	Profiler(HANDLE target_process, HANDLE target_thread,
-		std::map<CallStack, SAMPLE_TYPE>& callstacks, std::map<PROFILER_ADDR, SAMPLE_TYPE>& flatcounts);
+		ProfileFrame& frame);
 
 	// DE: 20090325: Need copy constructor since it is put in a std::vector
 	Profiler(const Profiler& iOther);
@@ -105,12 +112,13 @@ public:
 	~Profiler();
 
 	// DE: 20090325: Profiler no longer owns callstack and flatcounts since it is shared between multipler profilers
-	std::map<CallStack, SAMPLE_TYPE>& callstacks;
-	std::map<PROFILER_ADDR, SAMPLE_TYPE>& flatcounts;
+	ProfileFrame* profileFrame;
 	const bool is64BitProcess;
 
 	bool sampleTarget(SAMPLE_TYPE timeSpent, SymbolInfo *syminfo);//throws ProfilerExcep
 	bool targetExited() const;
+
+	void setProfileFrame(ProfileFrame& newProfileFrame);
 
 	//void saveIPs(std::ostream& stream);//write IP values to a stream
 

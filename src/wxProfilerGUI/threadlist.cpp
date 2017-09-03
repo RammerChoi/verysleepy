@@ -308,13 +308,12 @@ void ThreadList::updateTimes()
 std::wstring ThreadList::getLocation(HANDLE thread_handle) {
 	PROFILER_ADDR profaddr = 0;
 	try {
-		std::map<CallStack, SAMPLE_TYPE> callstacks;
-		std::map<PROFILER_ADDR, SAMPLE_TYPE> flatcounts;
-		Profiler profiler(process_handle, thread_handle, callstacks, flatcounts);
+		ProfileFrame profileFrame;
+		Profiler profiler(process_handle, thread_handle, profileFrame);
 		bool ok = profiler.sampleTarget(0, syminfo);
-		if (ok && !profiler.targetExited() && callstacks.size() > 0)
+		if (ok && !profiler.targetExited() && profileFrame.callstacks.size() > 0)
 		{
-			const CallStack &stack = callstacks.begin()->first;
+			const CallStack &stack = profileFrame.callstacks.begin()->first;
 			profaddr = stack.addr[0];
 
 			// Collapse functions down

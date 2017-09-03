@@ -1,4 +1,4 @@
-/*=====================================================================
+﻿/*=====================================================================
 profiler.cpp
 ------------
 File created by ClassTemplate on Thu Feb 24 19:00:30 2005
@@ -50,11 +50,10 @@ typedef CONTEXT CONTEXT32;
 // DE: 20090325: Profiler no longer owns callstack and flatcounts since it is shared between multipler profilers
 
 Profiler::Profiler(HANDLE target_process_, HANDLE target_thread_,
-				   std::map<CallStack, SAMPLE_TYPE>& callstacks_, std::map<PROFILER_ADDR, SAMPLE_TYPE>& flatcounts_)
-:	target_process(target_process_),
+	ProfileFrame& profileFrame_)
+	: target_process(target_process_),
 	target_thread(target_thread_),
-	callstacks(callstacks_),
-	flatcounts(flatcounts_),
+	profileFrame(&profileFrame_),
 	is64BitProcess(Is64BitProcess(target_process_))
 {
 }
@@ -64,8 +63,7 @@ Profiler::Profiler(HANDLE target_process_, HANDLE target_thread_,
 Profiler::Profiler(const Profiler& iOther)
 :	target_process(iOther.target_process),
 	target_thread(iOther.target_thread),
-	callstacks(iOther.callstacks),
-	flatcounts(iOther.flatcounts),
+	profileFrame(iOther.profileFrame),
 	is64BitProcess(iOther.is64BitProcess)
 {
 }
@@ -76,8 +74,7 @@ Profiler& Profiler::operator=(const Profiler& iOther)
 {
 	target_process = iOther.target_process;
 	target_thread = iOther.target_thread;
-	callstacks = iOther.callstacks;
-	flatcounts = iOther.flatcounts;
+	profileFrame = iOther.profileFrame;
 
 	return *this;
 }
@@ -313,8 +310,8 @@ bool Profiler::sampleTarget(SAMPLE_TYPE timeSpent, SymbolInfo *syminfo)
 	//may hit a lock held by the suspended thread.
 	if (stack.depth > 0)
 	{
-		flatcounts[stack.addr[0]]+=timeSpent;
-		callstacks[stack]+=timeSpent;
+		profileFrame->flatcounts[stack.addr[0]]+=timeSpent;
+		profileFrame->callstacks[stack]+=timeSpent;
 	}
 	return true;
 }
@@ -326,6 +323,10 @@ bool Profiler::targetExited() const
 	return (code == WAIT_OBJECT_0);
 }
 
+void Profiler::setProfileFrame(ProfileFrame& newProfileFrame)
+{
+	profileFrame = &newProfileFrame;
+}
 
 //void Profiler::saveIPs(std::ostream& stream)
 //{

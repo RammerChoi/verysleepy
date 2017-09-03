@@ -84,13 +84,18 @@ ProfilerGUI::ProfilerGUI()
 {
 	initialized = false;
 	captureWin = NULL;
+	profilerthread = nullptr;
 	InitSysInfo();
 }
 
 
 ProfilerGUI::~ProfilerGUI()
 {
-
+	if (profilerthread != nullptr)
+	{
+		delete profilerthread;
+		profilerthread = nullptr;
+	}
 }
 
 
@@ -164,7 +169,13 @@ std::wstring ProfilerGUI::LaunchProfiler(const AttachInfo *info)
 	//create the profiler thread
 	//------------------------------------------------------------------------
 	// DE: 20090325 attaches to a specific list of threads
-	ProfilerThread* profilerthread = new ProfilerThread(
+	if (profilerthread != nullptr)
+	{
+		delete profilerthread;
+		profilerthread = nullptr;
+	}
+
+	profilerthread = new ProfilerThread(
 		info->process_handle,
 		info->thread_handles,
 		info->sym_info
@@ -248,9 +259,6 @@ std::wstring ProfilerGUI::LaunchProfiler(const AttachInfo *info)
 
 	bool failed = profilerthread->getFailed();
 	std::wstring output_filename = profilerthread->getFilename();
-
-	delete profilerthread;
-	profilerthread = NULL;
 
 	if (failed)
 		return std::wstring();
