@@ -1,4 +1,4 @@
-/*=====================================================================
+﻿/*=====================================================================
 proclist.cpp
 ------------
 File created by ClassTemplate on Tue Mar 15 21:13:18 2005
@@ -160,9 +160,9 @@ void ProcList::sortList()
 }
 
 
-void ProcList::showList(const Database::List &list)
+void ProcList::showList(const Database::List &_list)
 {
-	this->list = list;
+	this->list = _list;
 	sortList();
 	displayList();
 }

@@ -11,3 +11,6 @@
 *.sdf
 *.suo
 *.user
+*.log
+*.log
+/thirdparty/Release/wxWidgetsSetup.log

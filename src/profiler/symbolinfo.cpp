@@ -1,4 +1,4 @@
-/*=====================================================================
+﻿/*=====================================================================
 symbolinfo.cpp
 --------------
 File created by ClassTemplate on Sat Mar 05 19:10:20 2005
@@ -158,10 +158,8 @@ void SymbolInfo::loadSymbolsUsing(DbgHelp* dbgHelp, const std::wstring& sympath)
 			// This is a secondary dbgHelp, so just complement debug
 			// information for modules that have none.
 			
-			for (size_t n=0;n<modules.size();n++)
+			for (auto& mod : modules)
 			{
-				Module &mod = modules[n];
-
 				IMAGEHLP_MODULEW64 info;
 				info.SizeOfStruct = sizeof(info);
 				if (!mod.dbghelp->SymGetModuleInfoW64(process_handle, mod.base_addr, &info))

@@ -1,4 +1,4 @@
-/*=====================================================================
+﻿/*=====================================================================
 sourceview.cpp
 --------------
 File created by ClassTemplate on Tue Mar 15 21:38:06 2005
@@ -197,14 +197,14 @@ void SourceView::showFile(std::wstring path, int proclinenum, const std::vector<
 	updateText(displaytext);
 
 	// Show line counts in margin
-	for (int line=1,lineCount=linecounts.size(); line<lineCount; ++line)
+	for (int lineNum=1,lineCount=linecounts.size(); lineNum<lineCount; ++lineNum)
 	{
-		if (linecounts[line])
+		if (linecounts[lineNum])
 		{
 			wchar_t currCount[32];
-			swprintf(currCount, countof(currCount), L"%0.2fs ", linecounts[line]);
-			MarginSetText (line-1, currCount);
-			MarginSetStyle(line-1, MARGIN_TEXT_STYLE);
+			swprintf(currCount, countof(currCount), L"%0.2fs ", linecounts[lineNum]);
+			MarginSetText (lineNum-1, currCount);
+			MarginSetStyle(lineNum-1, MARGIN_TEXT_STYLE);
 		}
 	}
 

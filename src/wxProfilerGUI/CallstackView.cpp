@@ -1,4 +1,4 @@
-/*=====================================================================
+﻿/*=====================================================================
 launchdlg.cpp
 ----------------
 
@@ -51,9 +51,9 @@ public:
 		dc.DrawText(label, 0,0);
 	}
 
-	void SetLabel(const wxString& label)
+	void SetLabel(const wxString& _label)
 	{
-		this->label = label;
+		this->label = _label;
 	}
 
 	void OnEraseBackground(wxEraseEvent& WXUNUSED(event))

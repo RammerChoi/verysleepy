@@ -1,4 +1,4 @@
-/*=====================================================================
+﻿/*=====================================================================
 proclist.h
 ----------
 File created by ClassTemplate on Tue Mar 15 21:13:18 2005
@@ -46,7 +46,7 @@ public:
 	void OnContextMenu(wxContextMenuEvent& event);
 
 	/// Recreates the GUI list from the given one. Preserves selection.
-	void showList(const Database::List &list);
+	void showList(const Database::List &_list);
 
 	void focusSymbol(const Database::Symbol *symbol);
 	const Database::Symbol *getFocusedSymbol();

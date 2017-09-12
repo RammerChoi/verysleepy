@@ -56,14 +56,14 @@ bool ThreadInfo::recalcUsage(int sampleTimeDiff)
 	cpuUsage = -1;
 	totalCpuTimeMs = -1;
 
-	HANDLE thread_handle = getThreadHandle();
-	if (thread_handle == NULL)
+	HANDLE threadHandle = getThreadHandle();
+	if (threadHandle == NULL)
 		return false;
 
 	FILETIME CreationTime, ExitTime, KernelTime, UserTime;
 
 	if (!GetThreadTimes(
-		thread_handle,
+		threadHandle,
 		&CreationTime,
 		&ExitTime,
 		&KernelTime,

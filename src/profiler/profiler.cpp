@@ -84,6 +84,8 @@ Profiler::~Profiler()
 
 }
 
+#pragma warning(disable:4312)
+
 // There are a couple of things than can cause StackWalk64 to not produce a correct callstack,
 // if we happen to have stopped the process in an unfortunate place.
 //

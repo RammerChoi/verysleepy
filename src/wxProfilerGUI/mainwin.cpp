@@ -526,7 +526,7 @@ void MainWin::OnExportAsCallgrind(wxCommandEvent& WXUNUSED(event))
 
 			struct CallgrindHelper // Inline helper functions for writing callgrind output files
 			{
-				static __forceinline std::wstring ConvertFilename(std::wstring str)
+				static inline std::wstring ConvertFilename(std::wstring str)
 				{
 					// Convert \ path separators to / for QCachegrind
 					for (auto i = str.find('\\'); i != std::wstring::npos; i = str.find('\\', i + 1)) str[i] = '/';

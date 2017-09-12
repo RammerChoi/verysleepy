@@ -1,4 +1,4 @@
-/*=====================================================================
+﻿/*=====================================================================
 dbginterface.h
 ----------
 
@@ -22,6 +22,8 @@ http://www.gnu.org/copyleft/gpl.html.
 =====================================================================*/
 #ifndef __DBGINTERFACE_H__
 #define __DBGINTERFACE_H__
+
+#pragma warning(disable:4091)
 
 // Use our own copy of dbghelp.h, to make sure it's the latest version.
 #include <windows.h>
