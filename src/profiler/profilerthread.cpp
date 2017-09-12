@@ -181,7 +181,7 @@ static void accumMap(Map& dest, const Map& source)
 {
 	for (auto it = source.begin(); it != source.end(); ++it)
 	{
-		dest[it->first] = it->second;
+		dest[it->first] += it->second;
 	}
 }
 
