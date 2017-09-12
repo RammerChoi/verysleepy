@@ -1,4 +1,4 @@
-/*=====================================================================
+﻿/*=====================================================================
 Database.cpp
 ------------
 
@@ -152,6 +152,7 @@ void Database::loadFromPath(const std::wstring& _profilepath, bool collapseOSCal
 		else if (name == "Stats.txt")		loadStats(zip);
 		else if (name == "minidump.dmp")	{ has_minidump = true; if(loadMinidump) this->loadMinidump(zip); }
 		else if (name.Left(8) == "Version ") {}
+		else if (name == "RawDatas.txt") {/*dummy*/}
 		else
 			wxLogWarning("Other fluff found in capture file (%s)\n", name.c_str());
 	}

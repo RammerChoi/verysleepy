@@ -82,6 +82,7 @@ private:
 	void sampleLoop();
 	bool saveData(const double beg, const double end);
 	void saveData();
+	void saveRawData(wxTextOutputStream& txt);
 
 	std::wstring symbolsStage;
 	int symbolsPermille, symbolsDone, symbolsTotal;

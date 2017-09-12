@@ -209,8 +209,27 @@ bool ProfilerThread::saveData(const double beg, const double end)
 		accumMap(totalProfileFrame.flatcounts, it->flatcounts);
 	}
 
+	// total data 
 	saveData();
 	return true;
+}
+
+namespace
+{
+	void saveFlatCounts(
+		wxTextOutputStream& txt, const PROFILER_ADDR addr, const SAMPLE_TYPE count)
+	{
+		txt << ::toHexString(addr) << " " << count << "\n";
+	}
+
+	void saveCallstacks(
+		wxTextOutputStream& txt, const CallStack& callstack, const SAMPLE_TYPE count)
+	{
+		txt << count;
+		for (size_t d = 0; d < callstack.depth; d++)
+			txt << " " << ::toHexString(callstack.addr[d]);
+		txt << "\n";
+	}
 }
 
 void ProfilerThread::saveData()
@@ -310,10 +329,7 @@ void ProfilerThread::saveData()
 
 	for (auto i = totalProfileFrame.flatcounts.begin(); i != totalProfileFrame.flatcounts.end(); ++i)
 	{
-		PROFILER_ADDR addr = i->first;
-		SAMPLE_TYPE count = i->second;
-
-		txt << ::toHexString(addr) << " " << count << "\n";
+		saveFlatCounts(txt, i->first, i->second);
 
 		if (updateProgress())
 			return;
@@ -325,16 +341,17 @@ void ProfilerThread::saveData()
 
 	for (auto i = totalProfileFrame.callstacks.begin(); i != totalProfileFrame.callstacks.end(); ++i)
 	{
-		const CallStack &callstack = i->first;
-		SAMPLE_TYPE count = i->second;
-
-		txt << count;
-		for (size_t d = 0; d < callstack.depth; d++)
-			txt << " " << ::toHexString(callstack.addr[d]);
-		txt << "\n";
+		saveCallstacks(txt, i->first, i->second);
 
 		if (updateProgress())
 			return;
+	}
+
+	// if (param) - save raw data flag
+	{
+		beginProgress(L"Saving raw data", profileFrames.size());
+		zip.PutNextEntry(_T("RawDatas.txt"));
+		saveRawData(txt);
 	}
 
 	//------------------------------------------------------------------------
@@ -348,6 +365,24 @@ void ProfilerThread::saveData()
 	{
 		error(L"Error writing to file");
 		return;
+	}
+}
+
+void ProfilerThread::saveRawData(wxTextOutputStream& txt)
+{
+	for (const ProfileFrame& profileFrame : profileFrames)
+	{
+		txt << profileFrame.timestamp;
+		
+		for (const auto& flatCount : profileFrame.flatcounts)
+		{
+			saveFlatCounts(txt, flatCount.first, flatCount.second);
+		}
+		
+		for (const auto& callstack : profileFrame.callstacks)
+		{
+			saveCallstacks(txt, callstack.first, callstack.second);
+		}
 	}
 }
 
