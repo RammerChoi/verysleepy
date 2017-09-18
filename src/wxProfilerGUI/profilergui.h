@@ -75,6 +75,7 @@ public:
 		throttle = 100;
 		useWinePref = useWineSwitch = useMingwSwitch = false;
 		attachMode = ATTACH_ALL_THREAD;
+		term = std::make_pair(0, 0);
 	}
 
 	wxString symSearchPath;
@@ -86,6 +87,8 @@ public:
 
 	bool useWinePref, useWineSwitch, useMingwSwitch;
 	AttachMode attachMode;
+
+	std::pair<double, double> term;
 
 	bool UseWine()
 	{

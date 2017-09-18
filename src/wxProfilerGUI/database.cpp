@@ -35,6 +35,8 @@ http://www.gnu.org/copyleft/gpl.html.
 #include "../appinfo.h"
 #include "../utils/except.h"
 #include "latesymbolinfo.h"
+#include "../wxProfilerGUI/profilergui.h"
+#include "../profiler/profiler.h"
 
 Database *theDatabase;
 
@@ -152,10 +154,13 @@ void Database::loadFromPath(const std::wstring& _profilepath, bool collapseOSCal
 		else if (name == "Stats.txt")		loadStats(zip);
 		else if (name == "minidump.dmp")	{ has_minidump = true; if(loadMinidump) this->loadMinidump(zip); }
 		else if (name.Left(8) == "Version ") {}
-		else if (name == "RawDatas.txt") {/*dummy*/}
+		else if (name == "RawDatas.txt")	loadRawDatas(zip);
 		else
 			wxLogWarning("Other fluff found in capture file (%s)\n", name.c_str());
 	}
+
+	prepareIPCounts();
+	prepareCallstacks();
 
 	setRoot(NULL);
 }
@@ -303,41 +308,6 @@ void Database::loadCallstacks(wxInputStream &file,bool collapseKernelCalls)
 		if (offset != wxInvalidOffset && offset != (wxFileOffset)filesize)
 			progressdlg.Update(kMaxProgress * offset / filesize);
 	}
-
-	struct Pred
-	{
-		bool operator () (const CallStack &a, const CallStack &b)
-		{
-			long l = a.addresses.size() - b.addresses.size();
-			return l ? l<0 : a.addresses < b.addresses;
-		}
-	};
-
-	// Sort and filter repeating callstacks
-	{
-		progressdlg.Update(0, "Sorting...");
-		progressdlg.Pulse();
-
-		std::stable_sort(callstacks.begin(), callstacks.end(), Pred());
-
-		progressdlg.Update(0, "Filtering...");
-
-		std::vector<CallStack> filtered;
-		const auto total = callstacks.size();
-		for (size_t i = 0; i < total; ++i)
-		{
-			if (i % 256 == 0)
-				progressdlg.Update(kMaxProgress * i / total);
-
-			auto& item = callstacks[i];
-			if (!filtered.empty() && filtered.back().addresses == item.addresses)
-				filtered.back().samplecount += item.samplecount;
-			else
-				filtered.emplace_back(std::move(item));
-		}
-
-		std::swap(filtered, callstacks);
-	}
 }
 
 void Database::loadIpCounts(wxInputStream &file)
@@ -347,6 +317,7 @@ void Database::loadIpCounts(wxInputStream &file)
 
 	str >> totalcount;
 
+	flatcounts.clear();
 	while(!file.Eof())
 	{
 		wxString line = str.ReadLine();
@@ -362,9 +333,8 @@ void Database::loadIpCounts(wxInputStream &file)
 		stream >> count;
 
 		Address addr = hexStringTo64UInt(addrstr);
-		AddrInfo *info = &addrinfo.at(addr);
-		info->count += count;
-		info->percentage += 100.0f * ((float)count / (float)totalcount);
+
+		flatcounts[addr] += count;
 	}
 }
 
@@ -565,6 +535,171 @@ void Database::loadMinidump(wxInputStream &file)
 		wxLogError("%ls\n", e.wwhat());
 		// Continue loading database
 	}
+}
+
+namespace
+{
+	void loadRawIPCount(
+		wxTextInputStream &str, std::size_t num, std::map<PROFILER_ADDR, SAMPLE_TYPE> &flatcounts)
+	{
+		std::wstring addrstr;
+		double count;
+		for (int i = 0; i < num; ++i)
+		{
+			wxString line = str.ReadLine();
+			if (line.IsEmpty())
+				break;
+
+			std::wistringstream stream(line.c_str().AsWChar());
+
+			stream >> addrstr;
+			stream >> count;
+
+			PROFILER_ADDR addr = hexStringTo64UInt(addrstr);
+			flatcounts[addr] += count;
+		}
+	}
+
+	void loadRawCallstacks(
+		wxTextInputStream &str, std::size_t num, std::map<CallStack, SAMPLE_TYPE> &callstacks)
+	{
+		CallStack callstack;
+
+		double count = 0;
+		std::wstring addrstr;
+		for (int i = 0; i < num; ++i)
+		{
+			wxString line = str.ReadLine();
+			if (line.IsEmpty())
+				break;
+
+			std::wistringstream stream(line.c_str().AsWChar());
+
+			stream >> callstack.depth;
+			stream >> count;
+			
+			for (int k = 0; k < callstack.depth; ++k)
+			{
+				stream >> addrstr;
+				if (addrstr.empty())
+					break;
+
+				PROFILER_ADDR addr = hexStringTo64UInt(addrstr);
+				callstack.addr[k] = addr;
+			}
+
+			callstacks[callstack] += count;
+		}
+
+	}
+}
+
+void Database::loadRawDatas(wxInputStream &file)
+{
+	if (prefs.term.first == 0 &&
+		prefs.term.second == 0)
+		return;
+
+	wxTextInputStream str(file);
+
+	size_t filesize = file.GetSize();
+	wxString msg = wxString::Format("Loading raw datas [%lf.2s ~ %lf.2s]...",
+		prefs.term.first, prefs.term.second);
+	wxProgressDialog progressdlg(APPNAME, msg,
+		kMaxProgress, theMainWin,
+		wxPD_APP_MODAL | wxPD_AUTO_HIDE);
+
+	std::list<ProfileFrame> frames;
+
+	while (!file.Eof())
+	{
+		ProfileFrame frame;
+
+		wxString line = str.ReadLine();
+		if (line.IsEmpty())
+			break;
+
+		std::wistringstream stream(line.c_str().AsWChar());
+		stream >> frame.timestamp;
+
+		std::size_t num = 0;
+		stream >> num;
+		loadRawIPCount(str, num, frame.flatcounts);
+
+		line = str.ReadLine();
+		if (line.IsEmpty())
+			break;
+
+		std::wistringstream stream2(line.c_str().AsWChar());
+		stream2 >> num;
+		loadRawCallstacks(str, num, frame.callstacks);
+		
+		frames.emplace_back(std::move(frame));
+		
+		wxFileOffset offset = file.TellI();
+		if (offset != wxInvalidOffset && offset != (wxFileOffset)filesize)
+			progressdlg.Update(kMaxProgress * offset / filesize);
+	}
+
+	// todo@rammerchoi - fillup this->callstack and this->flatcount by term.
+	//flatcounts.emplace_back(std::blahblah)
+	//callstacks.emplace_back(std::move(callstack));
+}
+
+void Database::prepareIPCounts()
+{
+	double totalcount = 0;
+	for (auto& e : flatcounts)
+	{
+		totalcount += e.second;
+	}
+
+	for (auto& e : flatcounts)
+	{
+		AddrInfo *info = &addrinfo.at(e.first);
+		info->count += e.second;
+		info->percentage += 100.0f * ((float)e.second / (float)totalcount);
+	}
+}
+
+// Sort and filter repeating callstacks
+void Database::prepareCallstacks()
+{
+	struct Pred
+	{
+		bool operator () (const CallStack &a, const CallStack &b)
+		{
+			long l = a.addresses.size() - b.addresses.size();
+			return l ? l<0 : a.addresses < b.addresses;
+		}
+	};
+
+	wxProgressDialog progressdlg(APPNAME, "Prepare Callstacks...",
+		kMaxProgress, theMainWin,
+		wxPD_APP_MODAL | wxPD_AUTO_HIDE);
+
+	progressdlg.Update(0, "Sorting...");
+	progressdlg.Pulse();
+
+	std::stable_sort(callstacks.begin(), callstacks.end(), Pred());
+
+	progressdlg.Update(0, "Filtering...");
+
+	std::vector<CallStack> filtered;
+	const auto total = callstacks.size();
+	for (size_t i = 0; i < total; ++i)
+	{
+		if (i % 256 == 0)
+			progressdlg.Update(kMaxProgress * i / total);
+
+		auto& item = callstacks[i];
+		if (!filtered.empty() && filtered.back().addresses == item.addresses)
+			filtered.back().samplecount += item.samplecount;
+		else
+			filtered.emplace_back(std::move(item));
+	}
+
+	std::swap(filtered, callstacks);
 }
 
 std::vector<double> Database::getLineCounts(FileID sourcefile)

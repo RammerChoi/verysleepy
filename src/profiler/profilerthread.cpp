@@ -173,6 +173,17 @@ void ProfilerThread::sampleLoop()
 		prev = now;
 	}
 
+	ProfileFrame& lastFrame = profileFrames.back();
+	lastFrame.timestamp = frameInterval;
+
+	auto rBegin = profileFrames.rbegin();
+	auto rNext = std::next(rBegin);
+	if (rBegin != profileFrames.rend() &&
+		rNext != profileFrames.rend())
+	{
+		lastFrame.timestamp = rNext->timestamp + frameInterval;
+	}
+
 	timeEndPeriod(1);
 }
 
@@ -368,22 +379,30 @@ void ProfilerThread::saveData()
 	}
 }
 
-void ProfilerThread::saveRawData(wxTextOutputStream& txt)
+bool ProfilerThread::saveRawData(wxTextOutputStream& txt)
 {
 	for (const ProfileFrame& profileFrame : profileFrames)
 	{
 		txt << profileFrame.timestamp;
-		
+
+		txt << " " << profileFrame.flatcounts.size() << "\n";
 		for (const auto& flatCount : profileFrame.flatcounts)
 		{
 			saveFlatCounts(txt, flatCount.first, flatCount.second);
 		}
-		
+
+		txt << profileFrame.callstacks.size() << "\n";
 		for (const auto& callstack : profileFrame.callstacks)
 		{
+			txt << callstack.first.depth << " ";
 			saveCallstacks(txt, callstack.first, callstack.second);
 		}
+
+		if (updateProgress())
+			return false;
 	}
+
+	return true;
 }
 
 void ProfilerThread::run()

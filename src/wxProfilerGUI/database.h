@@ -1,4 +1,4 @@
-/*=====================================================================
+﻿/*=====================================================================
 database.h
 ----------
 
@@ -158,6 +158,7 @@ private:
 	/// Address -> module/procname/sourcefile/sourceline
 	std::unordered_map<Address, AddrInfo> addrinfo;
 
+	std::map<unsigned long long, double> flatcounts;
 	std::vector<CallStack> callstacks;
 	List mainList;
 	std::wstring profilepath;
@@ -168,6 +169,9 @@ private:
 	void loadIpCounts(wxInputStream &file);
 	void loadStats(wxInputStream &file);
 	void loadMinidump(wxInputStream &file);
+	void loadRawDatas(wxInputStream &file);
+	void prepareIPCounts();
+	void prepareCallstacks();
 	void scanMainList();
 
 	bool includeCallstack(const CallStack &callstack) const;
